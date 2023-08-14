@@ -1,9 +1,7 @@
 package main
 
 import (
-	// "bufio"
 	"fmt"
-	"log"
 	"os"
 	"os/exec"
 	"time"
@@ -12,7 +10,31 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-const NTP_SERVER = "129.6.15.28"
+var servers = [4]string{
+	"129.6.15.28",
+	"129.6.15.29",
+	"129.6.15.30",
+	"129.6.15.27",
+}
+
+func queryNTP(ip string, timeChan chan<- time.Time, ipChan chan<- string, quit chan bool) {
+	currentTime, err := ntp.Time(ip)
+	if err != nil {
+		fmt.Println("Some error")
+		return
+	}
+	select {
+	case <-quit:
+		fmt.Println("this goroutine just quit and its IP was", ip)
+		return
+	case timeChan <- currentTime:
+		fmt.Println("sent the currentTime to ch")
+		quit <- true
+	case ipChan <- ip:
+		fmt.Println("sent the ip to ipChan")
+		quit <- true
+	}
+}
 
 type editorFinishedMsg struct{ err error }
 
@@ -23,16 +45,31 @@ func openEditor(filename string, start time.Time) tea.Cmd {
 	}
 	c := exec.Command(editor, filename) //nolint:gosec
 	return tea.ExecProcess(c, func(err error) tea.Msg {
-		stop, err := ntp.Time(NTP_SERVER)
-		if err != nil {
-			log.Fatal(err)
+
+		timeChan := make(chan time.Time)
+		ipChan := make(chan string)
+		quit := make(chan bool)
+
+		for _, val := range servers {
+			go queryNTP(val, timeChan, ipChan, quit)
 		}
-		d := stop.Sub(start)
+
+		firstResponse := <-timeChan
+		firstResponseIP := <-ipChan
+
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
+
+		d := firstResponse.Sub(start)
 		score := calculateScore("test.txt", d)
 		fmt.Println(score)
-		fmt.Println(score)
-		fmt.Println(score)
 		fmt.Println("WOOOOOOOOOOOOOOOOOOOOOOOOOOO")
+		fmt.Println(score)
+		fmt.Println(score)
 		return editorFinishedMsg{err}
 	})
 }
@@ -99,11 +136,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "e":
-			start, err := ntp.Time(NTP_SERVER)
-			if err != nil {
-				log.Fatal(err)
+			timeChan := make(chan time.Time)
+			ipChan := make(chan string)
+			quit := make(chan bool)
+
+			for _, val := range servers {
+				go queryNTP(val, timeChan, ipChan, quit)
 			}
-			return m, openEditor("test.txt", start)
+
+			firstResponse := <-timeChan
+			firstResponseIP := <-ipChan
+
+			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
+			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
+			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
+			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
+
+			return m, openEditor("test.txt", firstResponse)
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
