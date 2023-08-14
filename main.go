@@ -36,6 +36,21 @@ func queryNTP(ip string, timeChan chan<- time.Time, ipChan chan<- string, quit c
 	}
 }
 
+func NTPQuerier() (time.Time, string) {
+	timeChan := make(chan time.Time)
+	ipChan := make(chan string)
+	quit := make(chan bool)
+
+	for _, val := range servers {
+		go queryNTP(val, timeChan, ipChan, quit)
+	}
+
+	firstResponse := <-timeChan
+	firstResponseIP := <-ipChan
+
+	return firstResponse, firstResponseIP
+}
+
 type editorFinishedMsg struct{ err error }
 
 func openEditor(filename string, start time.Time) tea.Cmd {
@@ -46,16 +61,7 @@ func openEditor(filename string, start time.Time) tea.Cmd {
 	c := exec.Command(editor, filename) //nolint:gosec
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 
-		timeChan := make(chan time.Time)
-		ipChan := make(chan string)
-		quit := make(chan bool)
-
-		for _, val := range servers {
-			go queryNTP(val, timeChan, ipChan, quit)
-		}
-
-		firstResponse := <-timeChan
-		firstResponseIP := <-ipChan
+		firstResponse, firstResponseIP := NTPQuerier()
 
 		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
 		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
@@ -136,17 +142,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "e":
-			timeChan := make(chan time.Time)
-			ipChan := make(chan string)
-			quit := make(chan bool)
-
-			for _, val := range servers {
-				go queryNTP(val, timeChan, ipChan, quit)
-			}
-
-			firstResponse := <-timeChan
-			firstResponseIP := <-ipChan
-
+			firstResponse, firstResponseIP := NTPQuerier()
 			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
 			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
 			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
