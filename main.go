@@ -25,13 +25,10 @@ func queryNTP(ip string, timeChan chan<- time.Time, ipChan chan<- string, quit c
 	}
 	select {
 	case <-quit:
-		fmt.Println("this goroutine just quit and its IP was", ip)
 		return
 	case timeChan <- currentTime:
-		fmt.Println("sent the currentTime to ch")
 		quit <- true
 	case ipChan <- ip:
-		fmt.Println("sent the ip to ipChan")
 		quit <- true
 	}
 }
@@ -60,22 +57,12 @@ func openEditor(filename string, start time.Time) tea.Cmd {
 	}
 	c := exec.Command(editor, filename) //nolint:gosec
 	return tea.ExecProcess(c, func(err error) tea.Msg {
-
-		firstResponse, firstResponseIP := NTPQuerier()
-
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-		fmt.Println("THIS IS END TIME - First response is", firstResponse, "and it came from", firstResponseIP)
-
+		firstResponse, _ := NTPQuerier()
 		d := firstResponse.Sub(start)
 		score := calculateScore("test.txt", d)
-		fmt.Println(score)
-		fmt.Println("WOOOOOOOOOOOOOOOOOOOOOOOOOOO")
-		fmt.Println(score)
-		fmt.Println(score)
+		fmt.Println("Your score was", score)
+		fmt.Println("dummy print")
+		fmt.Println("dummy print")
 		return editorFinishedMsg{err}
 	})
 }
@@ -142,11 +129,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "e":
-			firstResponse, firstResponseIP := NTPQuerier()
-			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
-			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
-			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
-			fmt.Println("First response is", firstResponse, "and it came from", firstResponseIP)
+			firstResponse, _ := NTPQuerier()
 
 			return m, openEditor("test.txt", firstResponse)
 		case "ctrl+c", "q":
@@ -165,7 +148,7 @@ func (m model) View() string {
 	if m.err != nil {
 		return "Error: " + m.err.Error() + "\n"
 	}
-	return "Press 'e' to play the Vim challenge! Change the content below the demarcation line to look like that which resides above the line.\nPress 'q' to quit.\n"
+	return "Press 'e' to play the Vim challenge! Change the CONTENT to match the SOLUTION.\nPress 'q' to quit.\n"
 }
 
 func main() {
