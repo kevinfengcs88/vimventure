@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/beevik/ntp"
@@ -50,16 +53,22 @@ func NTPQuerier() (time.Time, string) {
 
 type editorFinishedMsg struct{ err error }
 
-func openEditor(filename string, start time.Time) tea.Cmd {
+func openEditor(filename string, path string, start time.Time) tea.Cmd {
 	editor := os.Getenv("EDITOR")
 	if editor == "" {
 		editor = "vim"
 	}
-	c := exec.Command(editor, filename) //nolint:gosec
+	currentDir, err := os.Getwd()
+	if err != nil {
+		fmt.Println("Error getting current working directory:", err)
+		return nil
+	}
+	targetFilePath := filepath.Join(currentDir, path, filename)
+	c := exec.Command(editor, targetFilePath) //nolint:gosec
 	return tea.ExecProcess(c, func(err error) tea.Msg {
 		firstResponse, _ := NTPQuerier()
 		d := firstResponse.Sub(start)
-		score := calculateScore("test.txt", d)
+		score := calculateScore(d)
 		fmt.Println("Your score was", score)
 		fmt.Println("dummy print")
 		fmt.Println("dummy print")
@@ -67,7 +76,7 @@ func openEditor(filename string, start time.Time) tea.Cmd {
 	})
 }
 
-func scaleDuration(d time.Duration) float64 {
+func timeBenchmark(d time.Duration) float64 {
 	const (
 		threshold        = 60 * time.Second
 		maxValue         = 1.0
@@ -90,30 +99,84 @@ func scaleDuration(d time.Duration) float64 {
 	return scaledValue
 }
 
-func calculateScore(filename string, d time.Duration) int {
-	// file, err := os.Open(filename)
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
-	// defer file.Close()
-	//
-	// scanner := bufio.NewScanner(file)
-	//
-	// for scanner.Scan() {
-	// 	line := scanner.Text()
-	// 	fmt.Println(line)
-	// }
-	//
-	// if err := scanner.Err(); err != nil {
-	// 	log.Fatal(err)
-	// }
+func accuracyBenchmark(filename string, path string) int {
+	currentDir, err := os.Getwd()
 
+	targetFilePath := filepath.Join(currentDir, path, filename)
+
+	file, err := os.Open(targetFilePath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer file.Close()
+
+	solutionStart := 2
+	solutionEnd := 11
+	solutionText := []string{}
+
+	contentStart := 13
+	contentEnd := 22
+	contentText := []string{}
+
+	scanner := bufio.NewScanner(file)
+
+	for lineNum := 1; lineNum < solutionStart; lineNum++ {
+		if !scanner.Scan() {
+			fmt.Println("Start line number is beyond the end of the file.")
+			return 0
+		}
+	}
+
+	for lineNum := solutionStart; lineNum <= solutionEnd; lineNum++ {
+		if !scanner.Scan() {
+			fmt.Println("End line number is beyond the end of the file.")
+			return 0
+		}
+		// integrate REST API here
+		solutionText = append(solutionText, scanner.Text())
+	}
+
+	for lineNum := solutionEnd + 1; lineNum < contentStart; lineNum++ {
+		if !scanner.Scan() {
+			fmt.Println("Start line number is beyond the end of the file.")
+			return 0
+		}
+	}
+
+	for lineNum := contentStart; lineNum <= contentEnd; lineNum++ {
+		if !scanner.Scan() {
+			fmt.Println("End line number is beyond the end of the file.")
+			return 0
+		}
+		contentText = append(contentText, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		fmt.Println("Error scanning file:", err)
+	}
+
+	fmt.Println("THIS IS THE SOLUTION")
+	fmt.Println(solutionText)
+	fmt.Println("THIS IS THE CONTENT")
+	fmt.Println(contentText)
+
+	accuracy := 0
+	for i := 0; i < 10; i++ {
+		if solutionText[i] == contentText[i] {
+			accuracy += 10
+		}
+	}
+	return accuracy
+}
+
+func calculateScore(d time.Duration) int {
+	accuracy := accuracyBenchmark("example1.txt", "challenges")
 	// let's assume the file is modified correctly, and the player gets a score of 100
 	// should also check for cheating
 	// compare the top half to a solution set
 	// then just compare the bottom half to the top half once confirmed that the solution was not modified
 	fmt.Println(d)
-	return int(100 * scaleDuration(d))
+	return int(float64(accuracy) * timeBenchmark(d))
 }
 
 type model struct {
@@ -130,8 +193,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "e":
 			firstResponse, _ := NTPQuerier()
-
-			return m, openEditor("test.txt", firstResponse)
+			return m, openEditor("example1.txt", "challenges", firstResponse)
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		}
