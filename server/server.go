@@ -18,5 +18,6 @@ func main() {
 	r := mux.NewRouter()
 	r.HandleFunc("/", HomeHandler)
 	http.Handle("/", r)
+	fmt.Println("HTTP server started on Port 6969")
 	http.ListenAndServe(":6969", nil)
 }
